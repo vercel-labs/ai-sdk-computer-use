@@ -3,6 +3,9 @@ import { VercelIcon } from "./icons";
 import { ComputerIcon } from "lucide-react";
 import Link from "next/link";
 
+// Provider configuration - defaults to "kernel"
+const PROVIDER = process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER || "kernel";
+
 export const ProjectInfo = () => {
   return (
     <motion.div className="w-full px-4">
@@ -19,7 +22,13 @@ export const ProjectInfo = () => {
           <StyledLink href="https://www.anthropic.com/claude/sonnet">
             Anthropic Claude Sonnet 3.7
           </StyledLink>
-          , and <StyledLink href="https://e2b.dev">e2b desktop</StyledLink>.
+          , and{" "}
+          {PROVIDER === "kernel" ? (
+            <StyledLink href="https://onkernel.com">Kernel</StyledLink>
+          ) : (
+            <StyledLink href="https://e2b.dev">E2B Desktop</StyledLink>
+          )}
+          .
         </p>
         <p>
           {" "}
@@ -64,7 +73,7 @@ export const DeployButton = () => {
   return (
     <Link
       target="_blank"
-      href={`https://vercel.com/new/clone?project-name=AI+SDK+Computer+Use+Demo&repository-name=ai-sdk-computer-use&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-computer-use&demo-title=AI+SDK+Computer+Use+Demo&demo-url=https%3A%2F%2Fai-sdk-computer-use.vercel.app%2F&demo-description=A+chatbot+application+built+with+Next.js+demonstrating+Anthropic+Claude+3.7+Sonnet%27s+computer+use+capabilities&env=ANTHROPIC_API_KEY,E2B_API_KEY`}
+      href={`https://vercel.com/new/clone?project-name=AI+SDK+Computer+Use+Demo&repository-name=ai-sdk-computer-use&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-computer-use&demo-title=AI+SDK+Computer+Use+Demo&demo-url=https%3A%2F%2Fai-sdk-computer-use.vercel.app%2F&demo-description=A+chatbot+application+built+with+Next.js+demonstrating+Anthropic+Claude+3.7+Sonnet%27s+computer+use+capabilities&env=ANTHROPIC_API_KEY,KERNEL_API_KEY,E2B_API_KEY`}
       className="flex flex-row gap-2 items-center bg-zinc-900 px-3 py-2 rounded-md text-zinc-50 hover:bg-zinc-950 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-50"
     >
       <VercelIcon size={14} />

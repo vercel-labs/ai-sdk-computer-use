@@ -2,6 +2,7 @@
 
 import { PreviewMessage } from "@/components/message";
 import { getDesktopURL } from "@/lib/e2b/utils";
+import { getBrowserURL } from "@/lib/kernel/utils";
 import { useScrollToBottom } from "@/lib/use-scroll-to-bottom";
 import { useChat } from "@ai-sdk/react";
 import { useEffect, useState } from "react";
@@ -17,6 +18,10 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { ABORTED } from "@/lib/utils";
+
+// Provider configuration - defaults to "kernel", can be overridden
+const PROVIDER = (process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER ||
+  "kernel") as "e2b" | "kernel";
 
 export default function Chat() {
   // Create separate refs for mobile and desktop to ensure both scroll properly
@@ -41,6 +46,7 @@ export default function Chat() {
     id: sandboxId ?? undefined,
     body: {
       sandboxId,
+      provider: PROVIDER,
     },
     maxSteps: 30,
     onError: (error) => {
@@ -87,7 +93,8 @@ export default function Chat() {
   const refreshDesktop = async () => {
     try {
       setIsInitializing(true);
-      const { streamUrl, id } = await getDesktopURL(sandboxId || undefined);
+      const getURL = PROVIDER === "kernel" ? getBrowserURL : getDesktopURL;
+      const { streamUrl, id } = await getURL(sandboxId || undefined);
       // console.log("Refreshed desktop connection with ID:", id);
       setStreamUrl(streamUrl);
       setSandboxId(id);
@@ -108,7 +115,7 @@ export default function Chat() {
 
       // Use sendBeacon which is best supported across browsers
       navigator.sendBeacon(
-        `/api/kill-desktop?sandboxId=${encodeURIComponent(sandboxId)}`,
+        `/api/kill-desktop?sandboxId=${encodeURIComponent(sandboxId)}&provider=${PROVIDER}`,
       );
     };
 
@@ -147,13 +154,18 @@ export default function Chat() {
         setIsInitializing(true);
 
         // Use the provided ID or create a new one
-        const { streamUrl, id } = await getDesktopURL(sandboxId ?? undefined);
+        const getURL = PROVIDER === "kernel" ? getBrowserURL : getDesktopURL;
+        const { streamUrl, id } = await getURL(sandboxId ?? undefined);
 
         setStreamUrl(streamUrl);
         setSandboxId(id);
       } catch (err) {
-        console.error("Failed to initialize desktop:", err);
-        toast.error("Failed to initialize desktop");
+        console.error("Failed to initialize:", err);
+        toast.error(
+          PROVIDER === "kernel"
+            ? "Failed to initialize browser"
+            : "Failed to initialize desktop",
+        );
       } finally {
         setIsInitializing(false);
       }
@@ -196,13 +208,21 @@ export default function Chat() {
                   className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white px-3 py-1 rounded text-sm z-10"
                   disabled={isInitializing}
                 >
-                  {isInitializing ? "Creating desktop..." : "New desktop"}
+                  {isInitializing
+                    ? PROVIDER === "kernel"
+                      ? "Creating browser..."
+                      : "Creating desktop..."
+                    : PROVIDER === "kernel"
+                      ? "New browser"
+                      : "New desktop"}
                 </Button>
               </>
             ) : (
               <div className="flex items-center justify-center h-full text-white">
                 {isInitializing
-                  ? "Initializing desktop..."
+                  ? PROVIDER === "kernel"
+                    ? "Initializing browser..."
+                    : "Initializing desktop..."
                   : "Loading stream..."}
               </div>
             )}

@@ -1,15 +1,41 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText, UIMessage } from "ai";
 import { killDesktop } from "@/lib/e2b/utils";
-import { bashTool, computerTool } from "@/lib/e2b/tool";
+import { killBrowser } from "@/lib/kernel/utils";
+import {
+  bashTool as e2bBashTool,
+  computerTool as e2bComputerTool,
+} from "@/lib/e2b/tool";
+import {
+  bashTool as kernelBashTool,
+  computerTool as kernelComputerTool,
+} from "@/lib/kernel/tool";
 import { prunedMessages } from "@/lib/utils";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 300;
 
+// Default provider can be set via environment variable
+const DEFAULT_PROVIDER = (process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER || "kernel") as
+  | "e2b"
+  | "kernel";
+
 export async function POST(req: Request) {
-  const { messages, sandboxId }: { messages: UIMessage[]; sandboxId: string } =
-    await req.json();
+  const {
+    messages,
+    sandboxId,
+    provider: rawProvider,
+  }: {
+    messages: UIMessage[];
+    sandboxId: string;
+    provider?: "e2b" | "kernel";
+  } = await req.json();
+
+  const provider: "e2b" | "kernel" = rawProvider || DEFAULT_PROVIDER;
+  const useKernel = provider === "kernel";
+  const computerTool = useKernel ? kernelComputerTool : e2bComputerTool;
+  const bashTool = useKernel ? kernelBashTool : e2bBashTool;
+
   try {
     const result = streamText({
       model: anthropic("claude-3-7-sonnet-20250219"), // Using Sonnet for computer use
@@ -38,7 +64,12 @@ export async function POST(req: Request) {
     return response;
   } catch (error) {
     console.error("Chat API error:", error);
-    await killDesktop(sandboxId); // Force cleanup on error
+    // Force cleanup on error based on provider
+    if (useKernel) {
+      await killBrowser(sandboxId);
+    } else {
+      await killDesktop(sandboxId);
+    }
     return new Response(JSON.stringify({ error: "Internal Server Error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
