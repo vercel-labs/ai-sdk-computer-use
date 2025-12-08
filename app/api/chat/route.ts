@@ -2,7 +2,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { streamText, UIMessage } from "ai";
 import { killDesktop } from "@/lib/e2b/utils";
 import { bashTool, computerTool } from "@/lib/e2b/tool";
-import { prunedMessages } from "@/lib/utils";
+import { getErrorMessage, prunedMessages } from "@/lib/utils";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 300;
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     await req.json();
   try {
     const result = streamText({
-      model: anthropic("claude-3-7-sonnet-20250219"), // Using Sonnet for computer use
+      model: anthropic("claude-sonnet-4-20250514"), // Using Claude Sonnet 4 for computer use
       system:
         "You are a helpful assistant with access to a computer. " +
         "Use the computer tool to help the user with their requests. " +
@@ -28,10 +28,9 @@ export async function POST(req: Request) {
 
     // Create response stream
     const response = result.toDataStreamResponse({
-      // @ts-expect-error eheljfe
-      getErrorMessage(error) {
+      getErrorMessage: (error) => {
         console.error(error);
-        return error;
+        return getErrorMessage(error);
       },
     });
 
