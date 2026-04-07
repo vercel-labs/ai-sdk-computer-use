@@ -181,7 +181,7 @@ async function createSnapshot() {
 
   // Take snapshot (this automatically stops the sandbox)
   console.log("Taking snapshot...");
-  const snapshot = await sandbox.snapshot();
+  const snapshot = await sandbox.snapshot({ expiration: 0 });
 
   console.log("\n========================================");
   console.log(`Snapshot ID: ${snapshot.snapshotId}`);
