@@ -16,8 +16,8 @@ export const ProjectInfo = () => {
         <p>
           This demo showcases a Computer Use Agent built with the{" "}
           <StyledLink href="https://sdk.vercel.ai">AI SDK</StyledLink>,{" "}
-          <StyledLink href="https://www.anthropic.com/claude/sonnet">
-            Anthropic Claude Sonnet 4.5
+          <StyledLink href="https://ai.google.dev/gemini-api/docs/models/">
+            Gemini
           </StyledLink>
           , and{" "}
           <StyledLink href="https://vercel.com/docs/vercel-sandbox">
@@ -68,7 +68,7 @@ export const DeployButton = () => {
   return (
     <Link
       target="_blank"
-      href={`https://vercel.com/new/clone?project-name=AI+SDK+Computer+Use+Demo&repository-name=ai-sdk-computer-use&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-computer-use&demo-title=AI+SDK+Computer+Use+Demo&demo-url=https%3A%2F%2Fai-sdk-computer-use.vercel.app%2F&demo-description=A+chatbot+application+built+with+Next.js+demonstrating+Anthropic+Claude+Sonnet+4.5+computer+use+capabilities+with+Vercel+Sandboxes&env=ANTHROPIC_API_KEY,SANDBOX_SNAPSHOT_ID`}
+      href={`https://vercel.com/new/clone?project-name=AI+SDK+Computer+Use+Demo&repository-name=ai-sdk-computer-use&repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-computer-use&demo-title=AI+SDK+Computer+Use+Demo&demo-url=https%3A%2F%2Fai-sdk-computer-use.vercel.app%2F&demo-description=A+chatbot+application+built+with+Next.js+demonstrating+OpenAI+GPT-4.1+computer+use+capabilities+with+Vercel+Sandboxes&env=OPENAI_API_KEY,SANDBOX_SNAPSHOT_ID`}
       className="flex flex-row gap-2 items-center bg-zinc-900 px-3 py-2 rounded-md text-zinc-50 hover:bg-zinc-950 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-50"
     >
       <VercelIcon size={14} />

@@ -1,4 +1,5 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { tool } from "ai";
+import { z } from "zod";
 import { getDesktop } from "./utils";
 
 const wait = async (seconds: number) => {
@@ -58,10 +59,61 @@ function mapKey(key: string): string {
 }
 
 export const computerTool = (sandboxId: string) =>
-  anthropic.tools.computer_20250124({
-    displayWidthPx: resolution.x,
-    displayHeightPx: resolution.y,
-    displayNumber: 1,
+  tool({
+    description:
+      "A tool for interacting with a computer desktop environment. " +
+      "Use this to control the mouse, keyboard, and take screenshots. " +
+      `The screen resolution is ${resolution.x}x${resolution.y} pixels. ` +
+      "Always take a screenshot first to understand the current state of the screen before performing actions. " +
+      "Use coordinates based on what you see in screenshots.",
+    parameters: z.object({
+      action: z
+        .enum([
+          "screenshot",
+          "left_click",
+          "right_click",
+          "double_click",
+          "mouse_move",
+          "type",
+          "key",
+          "scroll",
+          "wait",
+          "left_click_drag",
+        ])
+        .describe("The action to perform on the computer"),
+      coordinate: z
+        .array(z.number())
+        .length(2)
+        .optional()
+        .describe(
+          "The [x, y] pixel coordinate on screen. Required for click, mouse_move, and drag actions."
+        ),
+      text: z
+        .string()
+        .optional()
+        .describe(
+          "Text to type (for 'type' action) or key name to press (for 'key' action, e.g. 'Return', 'ctrl+c', 'space')"
+        ),
+      duration: z
+        .number()
+        .optional()
+        .describe("Duration in seconds for 'wait' action (max 2 seconds)"),
+      scroll_amount: z
+        .number()
+        .optional()
+        .describe("Number of scroll clicks for 'scroll' action"),
+      scroll_direction: z
+        .enum(["up", "down"])
+        .optional()
+        .describe("Direction to scroll for 'scroll' action"),
+      start_coordinate: z
+        .array(z.number())
+        .length(2)
+        .optional()
+        .describe(
+          "The starting [x, y] coordinate for 'left_click_drag' action"
+        ),
+    }),
     execute: async ({
       action,
       coordinate,
@@ -246,7 +298,14 @@ export const computerTool = (sandboxId: string) =>
   });
 
 export const bashTool = (sandboxId?: string) =>
-  anthropic.tools.bash_20250124({
+  tool({
+    description:
+      "Execute a bash command on the computer. " +
+      "Use this to run shell commands, create files, install packages, etc. " +
+      "Prefer this tool over the computer tool when the task can be accomplished via the command line.",
+    parameters: z.object({
+      command: z.string().describe("The bash command to execute"),
+    }),
     execute: async ({ command }) => {
       const sandbox = await getDesktop(sandboxId);
 
