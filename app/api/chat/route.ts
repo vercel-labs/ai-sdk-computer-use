@@ -7,6 +7,22 @@ import { prunedMessages } from "@/lib/utils";
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 300;
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
 export async function POST(req: Request) {
   const { messages, sandboxId }: { messages: UIMessage[]; sandboxId: string } =
     await req.json();
@@ -28,10 +44,9 @@ export async function POST(req: Request) {
 
     // Create response stream
     const response = result.toDataStreamResponse({
-      // @ts-expect-error eheljfe
       getErrorMessage(error) {
         console.error(error);
-        return error;
+        return getErrorMessage(error);
       },
     });
 
