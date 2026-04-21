@@ -6,7 +6,7 @@ interface InputProps {
   handleInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   isInitializing: boolean;
   isLoading: boolean;
-  status: string;
+  status: "error" | "submitted" | "streaming" | "ready";
   stop: () => void;
 }
 

@@ -1,22 +1,49 @@
 "use client";
 
-import { PreviewMessage } from "@/components/message";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import { useAgentEvents } from "@/hooks/use-agent-events";
 import { getDesktopURL } from "@/lib/sandbox/utils";
 import { useScrollToBottom } from "@/lib/use-scroll-to-bottom";
 import { useChat } from "@ai-sdk/react";
-import { useEffect, useState } from "react";
-import { Input } from "@/components/input";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { DeployButton, ProjectInfo } from "@/components/project-info";
-import { AISDKLogo } from "@/components/icons";
-import { PromptSuggestions } from "@/components/prompt-suggestions";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { ABORTED } from "@/lib/utils";
+
+function getChatErrorPresentation(error: Error): {
+  title: string;
+  description: string;
+} {
+  const message = error.message?.trim();
+
+  if (!message) {
+    return {
+      title: "There was an error",
+      description: "Please try again later.",
+    };
+  }
+
+  if (message.toLowerCase().includes("credit balance is too low")) {
+    return {
+      title: "Anthropic credits required",
+      description: message,
+    };
+  }
+
+  return {
+    title: "Request failed",
+    description: message,
+  };
+}
+
+function shouldSuppressChatErrorLog(error: Error): boolean {
+  const message = error.message?.toLowerCase().trim();
+
+  if (!message) {
+    return false;
+  }
+
+  return message.includes("credit balance is too low");
+}
 
 export default function Chat() {
   // Create separate refs for mobile and desktop to ensure both scroll properly
@@ -26,12 +53,13 @@ export default function Chat() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [sandboxId, setSandboxId] = useState<string | null>(null);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
 
   const {
     messages,
     input,
+    setInput,
     handleInputChange,
-    handleSubmit,
     status,
     stop: stopGeneration,
     append,
@@ -44,9 +72,14 @@ export default function Chat() {
     },
     maxSteps: 30,
     onError: (error) => {
-      console.error(error);
-      toast.error("There was an error", {
-        description: "Please try again later.",
+      if (!shouldSuppressChatErrorLog(error)) {
+        console.error(error);
+      }
+
+      const { title, description } = getChatErrorPresentation(error);
+      setRuntimeError(description);
+      toast.error(title, {
+        description,
         richColors: true,
         position: "top-center",
       });
@@ -83,12 +116,50 @@ export default function Chat() {
   };
 
   const isLoading = status !== "ready";
+  const {
+    events,
+    countsByType,
+    countsByActionType,
+    currentAgentStatus,
+    latestEvent,
+    selectedEventId,
+    selectedEvent,
+    selectedToolActivity,
+    toolActivities,
+    selectEvent,
+  } = useAgentEvents(messages, status, runtimeError);
 
-  const refreshDesktop = async () => {
+  const submitPrompt = useCallback(
+    (prompt: string) => {
+      setRuntimeError(null);
+
+      // `useChat` already routes failures through `onError`; swallow the
+      // returned rejection here to avoid duplicate noisy dev overlays.
+      void append({ role: "user", content: prompt }).catch(() => {});
+    },
+    [append],
+  );
+
+  const submitChatForm = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      const prompt = input.trim();
+      if (!prompt) {
+        return;
+      }
+
+      setRuntimeError(null);
+      setInput("");
+      void append({ role: "user", content: prompt }).catch(() => {});
+    },
+    [append, input, setInput],
+  );
+
+  const refreshDesktop = useCallback(async () => {
     try {
       setIsInitializing(true);
       const { streamUrl, id } = await getDesktopURL(sandboxId || undefined);
-      // console.log("Refreshed desktop connection with ID:", id);
       setStreamUrl(streamUrl);
       setSandboxId(id);
     } catch (err) {
@@ -96,7 +167,7 @@ export default function Chat() {
     } finally {
       setIsInitializing(false);
     }
-  };
+  }, [sandboxId]);
 
   // Kill desktop on page close
   useEffect(() => {
@@ -141,13 +212,17 @@ export default function Chat() {
   }, [sandboxId]);
 
   useEffect(() => {
-    // Initialize desktop and get stream URL when the component mounts
-    const init = async () => {
+    if (status === "submitted" || status === "streaming" || status === "ready") {
+      setRuntimeError(null);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    const initializeDesktop = async () => {
       try {
         setIsInitializing(true);
 
-        // Use the provided ID or create a new one
-        const { streamUrl, id } = await getDesktopURL(sandboxId ?? undefined);
+        const { streamUrl, id } = await getDesktopURL(undefined);
 
         setStreamUrl(streamUrl);
         setSandboxId(id);
@@ -159,154 +234,38 @@ export default function Chat() {
       }
     };
 
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void initializeDesktop();
   }, []);
 
   return (
-    <div className="flex h-dvh relative">
-      {/* Mobile/tablet banner */}
-      <div className="flex items-center justify-center fixed left-1/2 -translate-x-1/2 top-5 shadow-md text-xs mx-auto rounded-lg h-8 w-fit bg-blue-600 text-white px-3 py-2 text-left z-50 xl:hidden">
-        <span>Headless mode</span>
-      </div>
-
-      {/* Resizable Panels */}
-      <div className="w-full hidden xl:block">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Desktop Stream Panel */}
-          <ResizablePanel
-            defaultSize={70}
-            minSize={40}
-            className="bg-black relative items-center justify-center"
-          >
-            {streamUrl ? (
-              <>
-                <iframe
-                  src={streamUrl}
-                  className="w-full h-full"
-                  style={{
-                    transformOrigin: "center",
-                    width: "100%",
-                    height: "100%",
-                  }}
-                  allow="autoplay"
-                />
-                <Button
-                  onClick={refreshDesktop}
-                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white px-3 py-1 rounded text-sm z-10"
-                  disabled={isInitializing}
-                >
-                  {isInitializing ? "Creating desktop..." : "New desktop"}
-                </Button>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full text-white">
-                {isInitializing
-                  ? "Initializing desktop..."
-                  : "Loading stream..."}
-              </div>
-            )}
-          </ResizablePanel>
-
-          <ResizableHandle withHandle />
-
-          {/* Chat Interface Panel */}
-          <ResizablePanel
-            defaultSize={30}
-            minSize={25}
-            className="flex flex-col border-l border-zinc-200"
-          >
-            <div className="bg-white py-4 px-4 flex justify-between items-center">
-              <AISDKLogo />
-              <DeployButton />
-            </div>
-
-            <div
-              className="flex-1 space-y-6 py-4 overflow-y-auto px-4"
-              ref={desktopContainerRef}
-            >
-              {messages.length === 0 ? <ProjectInfo /> : null}
-              {messages.map((message, i) => (
-                <PreviewMessage
-                  message={message}
-                  key={message.id}
-                  isLoading={isLoading}
-                  status={status}
-                  isLatestMessage={i === messages.length - 1}
-                />
-              ))}
-              <div ref={desktopEndRef} className="pb-2" />
-            </div>
-
-            {messages.length === 0 && (
-              <PromptSuggestions
-                disabled={isInitializing}
-                submitPrompt={(prompt: string) =>
-                  append({ role: "user", content: prompt })
-                }
-              />
-            )}
-            <div className="bg-white">
-              <form onSubmit={handleSubmit} className="p-4">
-                <Input
-                  handleInputChange={handleInputChange}
-                  input={input}
-                  isInitializing={isInitializing}
-                  isLoading={isLoading}
-                  status={status}
-                  stop={stop}
-                />
-              </form>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
-
-      {/* Mobile View (Chat Only) */}
-      <div className="w-full xl:hidden flex flex-col">
-        <div className="bg-white py-4 px-4 flex justify-between items-center">
-          <AISDKLogo />
-          <DeployButton />
-        </div>
-
-        <div
-          className="flex-1 space-y-6 py-4 overflow-y-auto px-4"
-          ref={mobileContainerRef}
-        >
-          {messages.length === 0 ? <ProjectInfo /> : null}
-          {messages.map((message, i) => (
-            <PreviewMessage
-              message={message}
-              key={message.id}
-              isLoading={isLoading}
-              status={status}
-              isLatestMessage={i === messages.length - 1}
-            />
-          ))}
-          <div ref={mobileEndRef} className="pb-2" />
-        </div>
-
-        {messages.length === 0 && (
-          <PromptSuggestions
-            disabled={isInitializing}
-            submitPrompt={(prompt: string) =>
-              append({ role: "user", content: prompt })
-            }
-          />
-        )}
-        <div className="bg-white">
-          <form onSubmit={handleSubmit} className="p-4">
-            <Input
-              handleInputChange={handleInputChange}
-              input={input}
-              isInitializing={isInitializing}
-              isLoading={isLoading}
-              status={status}
-              stop={stop}
-            />
-          </form>
-        </div>
-      </div>
-    </div>
+    <DashboardLayout
+      messages={messages}
+      input={input}
+      isInitializing={isInitializing}
+      isLoading={isLoading}
+      status={status}
+      sandboxId={sandboxId}
+      streamUrl={streamUrl}
+      events={events}
+      countsByType={countsByType}
+      countsByActionType={countsByActionType}
+      currentAgentStatus={currentAgentStatus}
+      latestEvent={latestEvent}
+      selectedEventId={selectedEventId}
+      selectedEvent={selectedEvent}
+      selectedToolActivity={selectedToolActivity}
+      toolActivities={toolActivities}
+      runtimeError={runtimeError}
+      desktopContainerRef={desktopContainerRef}
+      desktopEndRef={desktopEndRef}
+      mobileContainerRef={mobileContainerRef}
+      mobileEndRef={mobileEndRef}
+      onInputChange={handleInputChange}
+      onSubmit={submitChatForm}
+      onStop={stop}
+      onPromptSelect={submitPrompt}
+      onRefreshDesktop={refreshDesktop}
+      onSelectEvent={selectEvent}
+    />
   );
 }
