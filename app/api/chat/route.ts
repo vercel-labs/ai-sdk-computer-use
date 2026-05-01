@@ -1,11 +1,11 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText, UIMessage } from "ai";
-import { killDesktop } from "@/lib/e2b/utils";
-import { killBrowser } from "@/lib/kernel/utils";
+import { killDesktop } from "@/lib/sandbox/utils";
 import {
-  bashTool as e2bBashTool,
-  computerTool as e2bComputerTool,
-} from "@/lib/e2b/tool";
+  bashTool as sandboxBashTool,
+  computerTool as sandboxComputerTool,
+} from "@/lib/sandbox/tool";
+import { killBrowser } from "@/lib/kernel/utils";
 import {
   bashTool as kernelBashTool,
   computerTool as kernelComputerTool,
@@ -16,9 +16,8 @@ import { prunedMessages } from "@/lib/utils";
 export const maxDuration = 300;
 
 // Default provider can be set via environment variable
-const DEFAULT_PROVIDER = (process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER || "kernel") as
-  | "e2b"
-  | "kernel";
+const DEFAULT_PROVIDER = (process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER ||
+  "kernel") as "sandbox" | "kernel";
 
 export async function POST(req: Request) {
   const {
@@ -28,17 +27,17 @@ export async function POST(req: Request) {
   }: {
     messages: UIMessage[];
     sandboxId: string;
-    provider?: "e2b" | "kernel";
+    provider?: "sandbox" | "kernel";
   } = await req.json();
 
-  const provider: "e2b" | "kernel" = rawProvider || DEFAULT_PROVIDER;
+  const provider: "sandbox" | "kernel" = rawProvider || DEFAULT_PROVIDER;
   const useKernel = provider === "kernel";
-  const computerTool = useKernel ? kernelComputerTool : e2bComputerTool;
-  const bashTool = useKernel ? kernelBashTool : e2bBashTool;
+  const computerTool = useKernel ? kernelComputerTool : sandboxComputerTool;
+  const bashTool = useKernel ? kernelBashTool : sandboxBashTool;
 
   try {
     const result = streamText({
-      model: anthropic("claude-3-7-sonnet-20250219"), // Using Sonnet for computer use
+      model: anthropic("claude-sonnet-4-5-20250929"), // Using Sonnet for computer use
       system:
         "You are a helpful assistant with access to a computer. " +
         "Use the computer tool to help the user with their requests. " +

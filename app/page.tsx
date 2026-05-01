@@ -1,7 +1,7 @@
 "use client";
 
 import { PreviewMessage } from "@/components/message";
-import { getDesktopURL } from "@/lib/e2b/utils";
+import { getDesktopURL } from "@/lib/sandbox/utils";
 import { getBrowserURL } from "@/lib/kernel/utils";
 import { useScrollToBottom } from "@/lib/use-scroll-to-bottom";
 import { useChat } from "@ai-sdk/react";
@@ -21,7 +21,7 @@ import { ABORTED } from "@/lib/utils";
 
 // Provider configuration - defaults to "kernel", can be overridden
 const PROVIDER = (process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER ||
-  "kernel") as "e2b" | "kernel";
+  "kernel") as "sandbox" | "kernel";
 
 export default function Chat() {
   // Create separate refs for mobile and desktop to ensure both scroll properly

@@ -1,8 +1,9 @@
-import { killDesktop } from "@/lib/e2b/utils";
+import { killDesktop } from "@/lib/sandbox/utils";
 import { killBrowser } from "@/lib/kernel/utils";
 
 // Default provider can be set via environment variable
-const DEFAULT_PROVIDER = process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER || "kernel";
+const DEFAULT_PROVIDER =
+  process.env.NEXT_PUBLIC_COMPUTER_USE_PROVIDER || "kernel";
 
 // Common handler for both GET and POST requests
 async function handleKillDesktop(request: Request) {
